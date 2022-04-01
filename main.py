@@ -1,7 +1,18 @@
 import requests
+import datetime
 import json
 import time
 from tqdm import tqdm
+from pprint import pprint
+
+
+def get_id_vk(id_vk):
+    if id_vk is int:
+        id_vk = id_vk
+    else:
+        url = "https://api.vk.com/method/users.get"
+        r = requests.get(url=url, params={'access_token': token_vk, 'v': 5.131}).json()
+    return r['response'][0]['id']
 
 
 def write_json(data):
@@ -19,13 +30,14 @@ def get_largest(size):
 def get_photo():
     upload_info = {}
     url = "https://api.vk.com/method/photos.get"
-    r = requests.get(url=url, params={'owner_id': id_vk,
+    r = requests.get(url=url, params={'owner_id': get_id_vk(id_vk),
                                       'access_token': token_vk,
                                       'album_id': 'profile',
                                       'count': count,
                                       'extended': True,
                                       'photo_sizes': True,
                                       'v': 5.131})
+
     write_json(r.json())
     photos = json.load(open('photos.json'))['response']['items']
     for photo in photos:
@@ -35,7 +47,8 @@ def get_photo():
         if photo['likes']['count'] not in upload_info:
             upload_info[photo['likes']['count']] = (max_size_url, max_size)
         else:
-            upload_info[photo['date']] = (max_size_url, max_size)
+            m = (datetime.datetime.fromtimestamp(int(photo['date'])).strftime('%Y-%m-%d'))
+            upload_info[m] = (max_size_url, max_size)
     return upload_info
 
 
@@ -63,27 +76,24 @@ def upload():
         time.sleep(1)
 
 
-def write_ya_json():
-    photo = get_photo()
-
+def write_log_json():
+    photos = get_photo()
+    json_list = []
+    for photo in photos.items():
+        new_dict = {}
+        new_dict["filename"] = f'{photo[0]}.jpg'
+        new_dict["size"] = photo[1][1]
+        json_list.append(new_dict)
     with open('photos.json', 'w') as f:
-        f.write('[')
-        for key in photo:
-            f.write('\n')
-            f.write('{')
-            f.writelines("'file name':" + "'" + str(key) + "'")
-            f.write('\n')
-            f.writelines("'size' :" + "'" + str(photo[key][1]) + "'")
-            f.write('}')
-        f.write(']')
+        json.dump(json_list, f, indent=2, ensure_ascii=False)
 
 
 if __name__ == "__main__":
-    id_vk =         # Необходимо ввести id пользователся vk
-    count =         # Необходимо ввести количество скачиваемых фото
-    token_vk = ''   # Необходимо ввести токен vk
-    token_ya = ''   # Необходимо ввести токен яндекс.диска
+    id_vk =   # Необходимо ввести id или username пользователся vk
+    count =   # Необходимо ввести количество скачиваемых фото
+    token_vk = ''  # Необходимо ввести токен vk
+    token_ya = ''  # Необходимо ввести токен яндекс.диска
     path = id_vk
     create_folder()
     upload()
-    write_ya_json()
+    write_log_json()
